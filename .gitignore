@@ -1,0 +1,12 @@
+forecast_rainy
+forecast_solarradiation_max
+forecast_solarradiation_mean
+forecast_windy
+nvvm
+rainy
+forecast_rainy
+solarradiation_max
+solarradiation_mean
+temperature
+windy
+__pycache__
