@@ -1,84 +1,85 @@
+import pandas as pd
+import math
 from itertools import groupby
 from operator import itemgetter
 import datetime
-import math
-import pandas as pd
+import numpy as np
 import pytz
-import pysolar.solar as ps
-
 tz = pytz.timezone('Europe/Berlin')
 
-THRESHOLD_SOLAR_VALUE_SUNSHINE = 0.7
-
-def solar_radiation_threshold_by_time_and_day(timestamp, factor, tz=tz):
-    date = datetime.datetime.fromtimestamp(timestamp, tz=tz)
-    latitude = 48.4723
-    longitude = 9.2117
-    altitude_deg = ps.get_altitude(latitude, longitude, date)
-    azimuth_deg = ps.get_azimuth(latitude, longitude, date)
-    power_output = ps.radiation.get_radiation_direct(date, altitude_deg)
-    return float(max(150, power_output * factor))
-
-
-def solar_radiation_threshold_by_week(timestamp, factor):
-    sunny_by_week = [158, 206, 256, 314, 376, 438, 483, 506, 533, 580, 626, 
-                    662, 709, 739, 764, 797, 825, 875, 922, 948, 953, 970, 
-                    974, 994, 989, 992, 995, 981, 966, 949, 930, 911, 903, 
-                    882, 872, 844, 796, 764, 723, 678, 637, 597, 533, 487, 
-                    430, 383, 352, 320, 289, 252, 216, 175, 145]
-    
+def convert_to_weeknumber_cossin(timestamp):
     date = datetime.datetime.fromtimestamp(timestamp)
     dt_local = date.astimezone(tz)
     week_number = dt_local.isocalendar()[1]
-    return sunny_by_week[week_number-1] * factor
-    
-def convert_to_normalized_weeknumber(timestamp):
-    date = datetime.datetime.fromtimestamp(timestamp)
-    dt_local = date.astimezone(tz)
-    week_number = dt_local.isocalendar()[1]
-    week_number_norm = week_number / 53
-    return week_number_norm
+    sin_week = np.sin(2*np.pi*week_number/53).astype(np.float32)
+    cos_week = np.cos(2*np.pi*week_number/53).astype(np.float32)
+    return sin_week, cos_week
 
-def convert_to_normalized_hour(timestamp):
+def convert_to_hour_cossin(timestamp):
     date = datetime.datetime.fromtimestamp(timestamp)
     dt_local = date.astimezone(tz)
     hour = dt_local.hour
-    hour_norm = hour / 23
-    return hour_norm
+    sin_hour = np.sin(2*np.pi*hour/23).astype(np.float32)
+    cos_hour = np.cos(2*np.pi*hour/23).astype(np.float32)
+    return sin_hour, cos_hour
+
+
+def closest_timestamp(data, timestamp):
+    closest_timestamp = min(data.keys(), key=lambda t: abs(t - timestamp))
+    return data[closest_timestamp]
 
 def read_csv(file):
     data = pd.read_csv(file)
     for index, row in data.iterrows():
         yield row['time'] / 1_000_000_000, row['tags'], row['min'], row['max'], row['mean'] 
 
+def read_csv_meteostat(file):
+    data = pd.read_csv(file)
+    timestamp_dict = {}
+    for index, row in data.iterrows():
+        if not pd.isna(row['time']) and not pd.isna(row['pres']):
+            timestamp = row['time'] / 1_000_000_000
+            timestamp_dict[timestamp] = row['pres']                            
+    return timestamp_dict
 
-def group_columns(file):
+def group_column(file, north, east, south, west):
+    meteostat_data_north = read_csv_meteostat(north)
+    meteostat_data_east = read_csv_meteostat(east)
+    meteostat_data_south = read_csv_meteostat(south)
+    meteostat_data_west = read_csv_meteostat(west)
+    
     for timestamp, values in groupby(read_csv(file), key=itemgetter(0)):
+        pres_value_north = closest_timestamp(meteostat_data_north, timestamp)
+        pres_value_east = closest_timestamp(meteostat_data_east, timestamp)
+        pres_value_south = closest_timestamp(meteostat_data_south, timestamp)
+        pres_value_west = closest_timestamp(meteostat_data_west, timestamp)
+        
         d = {}
         for (_, topic, value_min, value_max, value_mean) in values:
             if not math.isnan(value_min) and not math.isnan(value_max) and not math.isnan(value_mean):
                 d[topic] = {'min': value_min, 'max': value_max, 'mean': value_mean}
         
         try:
+            week_values = convert_to_weeknumber_cossin(timestamp)
+            hour_values = convert_to_hour_cossin(timestamp)
             yield (
-                (0,1)[d["topic=Pfullingen/solarradiation"]['max'] > solar_radiation_threshold_by_time_and_day(timestamp, THRESHOLD_SOLAR_VALUE_SUNSHINE)],
-                (d["topic=Pfullingen/temperature"]['min'] - 20) / 35, 
-                (d["topic=Pfullingen/temperature"]['max'] - 20) / 35, 
-                (0,1)[d["topic=Pfullingen/temperature"]['min'] < 0],
-                (0,1)[d["topic=Pfullingen/windgust"]['max'] > 20],
-                (0,1)[d["topic=Pfullingen/hourlyrain"]['mean'] > 0],
                 (d["topic=Pfullingen/temperature"]['mean'] - 20) / 35, 
-                (d["topic=Pfullingen/windspeed"]['mean']- 5) / 10,
                 (d["topic=Pfullingen/hourlyrain"]['mean']) / 10, 
-                (d["topic=Pfullingen/pressure"]['mean'] - 500) / 1000,
-                (d["topic=Pfullingen/dewpoint"]['mean'] - 20) / 30,
-                (d["topic=Pfullingen/winddir"]['mean'] - 180) / 360,
-                (d["topic=Pfullingen/humidity"]['mean'] - 50) / 100,
+                (d["topic=Pfullingen/windspeed"]['mean']- 5) / 10,
                 (d["topic=Pfullingen/solarradiation"]['max'] - 500) / 1000,
                 (d["topic=Pfullingen/solarradiation"]['mean'] - 500) / 1000, 
-                convert_to_normalized_weeknumber(timestamp),
-                convert_to_normalized_hour(timestamp)
+                (d["topic=Pfullingen/pressure"]['mean'] - 500) / 1000,
+                (d["topic=Pfullingen/winddir"]['mean'] - 180) / 360,
+                (d["topic=Pfullingen/humidity"]['mean'] - 50) / 100,
+                hour_values[0],
+                hour_values[1],
+                week_values[0],
+                week_values[1],
+                float((pres_value_north - 500) / 1000),
+                float((pres_value_east - 500) / 1000),
+                float((pres_value_south - 500) / 1000),
+                float((pres_value_west - 500) / 1000)
+                
             )
         except KeyError:
             pass
-
