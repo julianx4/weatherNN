@@ -7,5 +7,6 @@ download_data.bat
 LTSM_RNN.ipynb
 Normal_MLP.ipynb
 weather_pfullingen_LTSM.pth
+weather_pfullingen_MLP.pth
 weather_pfullingen.pth
 __pycache__
