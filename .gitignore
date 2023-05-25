@@ -10,3 +10,16 @@ solarradiation_mean
 temperature
 windy
 __pycache__
+.ipynb_checkpoints
+data_east_p.csv
+data_north_p.csv
+data_south_p.csv
+data_west_p.csv
+data_east_p_test_latest.csv
+data_north_p_test_latest.csv
+data_south_p_test_latest.csv
+data_west_p_test_latest.csv
+data_east_p_test_latest_before_coldfront.csv
+data_north_p_test_latest_before_coldfront.csv
+data_south_p_test_latest_before_coldfront.csv
+data_west_p_test_latest_before_coldfront.csv
