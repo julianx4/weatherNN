@@ -15,16 +15,16 @@ command4 = ["sed", "-i", "1s/^/name,tags,time,min,max,mean\\n/", "now_sorted.csv
 
 device = 'cpu'
 
-k = 16  # Dimension of transformer key/query/value vectors 10
-heads = 16  # Number of attention heads 2
-depth = 12 # Number of transformer blocks 2
-num_features = 16  # Number of input features (temperature, pressure)
-seq_length = 72  # Length of the sequence
+input_hours = 72
+input_features = 16
+output_hours = 24
+output_features = 16
 
-model = Predictor(k, heads, depth, seq_length, num_features, max_seq_len=80).to(device)
+output_dim = output_hours * output_features
+model = WeatherForecast(input_features=input_features, hidden_dim=60, num_layers=8, output_dim=output_dim).to(device)
 
 #load model:
-model.load_state_dict(torch.load('weather_pfullingen.pth', map_location=torch.device(device)))
+model.load_state_dict(torch.load('weather_pfullingen_LTSM.pth', map_location=torch.device(device)))
 
 def load_and_save_meteostat_data():
     end = datetime.utcnow()
@@ -78,15 +78,15 @@ def load_and_save_meteostat_data():
 
 
 def forecast():
-    load_and_save_meteostat_data()
-    with open("now.csv", "w") as outfile:
-        subprocess.run(command1, stdout=outfile)
+    # load_and_save_meteostat_data()
+    # with open("now.csv", "w") as outfile:
+    #     subprocess.run(command1, stdout=outfile)
 
-    with open("now_sorted.csv", "w") as outfile:
-        subprocess.run(command2, stdin=open("now.csv"), stdout=outfile)
+    # with open("now_sorted.csv", "w") as outfile:
+    #     subprocess.run(command2, stdin=open("now.csv"), stdout=outfile)
 
-    subprocess.run(command3)
-    subprocess.run(command4)
+    # subprocess.run(command3)
+    # subprocess.run(command4)
 
     file1 = "now_sorted.csv"
     north = 'data_north_p_latest.csv'
@@ -97,14 +97,33 @@ def forecast():
     model.eval()
     imported_data_raw = list(group_column(file1, north, east, south, west))
     imported_data = torch.tensor(imported_data_raw)
-    eval_data = imported_data[-seq_length:]
-    eval_data = eval_data.view(1,seq_length,num_features)
+    eval_data = imported_data[-input_hours:]
+    eval_data[:, 12] -= eval_data[:, 5]
+    eval_data[:, 13] -= eval_data[:, 5]
+    eval_data[:, 14] -= eval_data[:, 5]
+    eval_data[:, 15] -= eval_data[:, 5]
+
+    eval_data[:, 12] *= 45
+    eval_data[:, 13] *= 45
+    eval_data[:, 14] *= 45
+    eval_data[:, 15] *= 45
+    eval_data = eval_data.view(1,input_hours,input_features)
 
     output = model(eval_data)
-    temperature = output[0, :, 0]*35+20
-    sol_max =     output[0, :, 3]*1000+500
-    sol_mean =    output[0, :, 4]*1000+500
-    wind =        output[0, :, 2]*10+5
-    rain =        output[0, :, 1]*10
+    output = output.view(output_hours, output_features)
+    temperature = output[:, 0]*35+20
+    sol_max =     output[:, 3]*1000+500
+    sol_mean =    output[:, 4]*1000+500
+    wind =        output[:, 2]*10+5
+    rain =        output[:, 1]*10
 
     return temperature, sol_max, sol_mean, wind, rain
+
+if __name__ == "__main__":
+    temperature, sol_max, sol_mean, wind, rain = forecast()
+    print(temperature)
+    print(sol_max)
+    print(sol_mean)
+    print(wind)
+    print(rain)
+    print("done")
