@@ -19,8 +19,8 @@ def convert_to_hour_cossin(timestamp):
     date = datetime.datetime.fromtimestamp(timestamp)
     dt_local = date.astimezone(tz)
     hour = dt_local.hour
-    sin_hour = np.sin(2*np.pi*hour/23).astype(np.float32)
-    cos_hour = np.cos(2*np.pi*hour/23).astype(np.float32)
+    sin_hour = np.sin(2*np.pi*hour/24).astype(np.float32)
+    cos_hour = np.cos(2*np.pi*hour/24).astype(np.float32)
     return sin_hour, cos_hour
 
 
