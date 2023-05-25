@@ -1,25 +1,43 @@
+.ipynb_checkpoints
 forecast_rainy
 forecast_solarradiation_max
 forecast_solarradiation_mean
 forecast_windy
 nvvm
 rainy
-forecast_rainy
 solarradiation_max
 solarradiation_mean
 temperature
 windy
-__pycache__
-.ipynb_checkpoints
+pycache
+.gitignore
+all_training_data_sorted.csv
 data_east_p.csv
-data_north_p.csv
-data_south_p.csv
-data_west_p.csv
+data_east_p_latest.csv
 data_east_p_test_latest.csv
-data_north_p_test_latest.csv
-data_south_p_test_latest.csv
-data_west_p_test_latest.csv
 data_east_p_test_latest_before_coldfront.csv
+data_min_max_mean_sorted.csv
+data_north_p.csv
+data_north_p_latest.csv
+data_north_p_test_latest.csv
 data_north_p_test_latest_before_coldfront.csv
+data_south_p.csv
+data_south_p_latest.csv
+data_south_p_test_latest.csv
 data_south_p_test_latest_before_coldfront.csv
+data_west_p.csv
+data_west_p_latest.csv
+data_west_p_test_latest.csv
 data_west_p_test_latest_before_coldfront.csv
+download_data.bat
+imported_data_raw.pt
+LTSM RNN.ipynb
+meteostatimporttest.ipynb
+Normal MLP.ipynb
+now_sorted.csv
+Prepare meteostat data.ipynb
+test.csv
+test_before_coldfront_sorted.csv
+test_sorted.csv
+Weather Transformer.ipynb
+weather_pfullingen.pth
